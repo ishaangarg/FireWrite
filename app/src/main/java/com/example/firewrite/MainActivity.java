@@ -14,6 +14,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.ArrayList;
 
@@ -25,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText newMessageEt;
     private Button sendBtn;
     private ChatAdapter chatAdapter;
+    private ChildEventListener ref;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +40,6 @@ public class MainActivity extends AppCompatActivity {
         chatAdapter = new ChatAdapter(this, new ArrayList<ChatData>());
         chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         chatRecyclerView.setAdapter(chatAdapter);
-        syncMsgs();
 
         sendBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -57,48 +58,63 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        FirebaseMessaging.getInstance().subscribeToTopic("default");
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        syncMsgs();
     }
 
     private void syncMsgs() {
-        FirebaseDatabase.getInstance().getReference("messages/groups")
+        ref = FirebaseDatabase.getInstance().getReference("messages/groups")
                 .child("0").addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Log.d(TAG, "onChildAdded: ");
-                final ChatData chatData = dataSnapshot.getValue(ChatData.class);
-                if (chatData != null) {
-                    Log.d(TAG, "onChildAdded: " + dataSnapshot.getKey());
-                    chatData.setId(dataSnapshot.getKey());
-                    chatAdapter.addChatData(chatData);
-                    //sendReadReceipt(chatData);
-                }
-                chatRecyclerView.scrollToPosition(chatAdapter.getItemCount() - 1);
-            }
+                    @Override
+                    public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                        Log.d(TAG, "onChildAdded: ");
+                        final ChatData chatData = dataSnapshot.getValue(ChatData.class);
+                        if (chatData != null) {
+                            Log.d(TAG, "onChildAdded: " + dataSnapshot.getKey());
+                            chatData.setId(dataSnapshot.getKey());
+                            chatAdapter.addChatData(chatData);
+                            //sendReadReceipt(chatData);
+                        }
+                        chatRecyclerView.scrollToPosition(chatAdapter.getItemCount() - 1);
+                    }
 
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                Log.d(TAG, "onChildChanged: ");
-                final ChatData chatData = dataSnapshot.getValue(ChatData.class);
-                if (chatData != null) {
-                    chatData.setId(dataSnapshot.getKey());
-                    chatAdapter.updateChatData(chatData);
-                }
-            }
+                    @Override
+                    public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+                        Log.d(TAG, "onChildChanged: ");
+                        final ChatData chatData = dataSnapshot.getValue(ChatData.class);
+                        if (chatData != null) {
+                            chatData.setId(dataSnapshot.getKey());
+                            chatAdapter.updateChatData(chatData);
+                        }
+                    }
 
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                Log.d(TAG, "onChildRemoved: ");
-            }
+                    @Override
+                    public void onChildRemoved(DataSnapshot dataSnapshot) {
+                        Log.d(TAG, "onChildRemoved: ");
+                    }
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                    @Override
+                    public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-            }
+                    }
 
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
 
-            }
-        });
+                    }
+                });
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        FirebaseDatabase.getInstance().getReference("messages/groups")
+                .child("0").removeEventListener(ref);
     }
 }
